@@ -6,75 +6,67 @@ firebase.initializeApp({
 var bt_register = $('#register');
 var token = $('#token');
 
-if (window.location.protocol === 'https:' &&
-        'Notification' in window &&
-        'serviceWorker' in navigator &&
-        'localStorage' in window &&
-        'fetch' in window &&
-        'postMessage' in window
-        ) {
-    var messaging = firebase.messaging();
+document.addEventListener('DOMContentLoaded', function () {
+    app_init();
+});
 
-    // already granted
-    if (Notification.permission === 'granted') {
-        getToken();
+function app_init() {
+    if (window.location.protocol === 'https:' &&
+            'Notification' in window &&
+            'serviceWorker' in navigator
+            ) {
+        var messaging = firebase.messaging();
+
+        // already granted
+        if (Notification.permission === 'granted') {
+            app_getToken();
+        }
+
+        // get permission on subscribe only once
+        bt_register.on('click', function () {
+            app_getToken();
+        });
+
+        // Callback fired if Instance ID token is updated.
+        messaging.onTokenRefresh(function () {
+            messaging.app_getToken()
+                    .then(function (refreshedToken) {
+                        showError('Token refreshed.');
+                        // Send Instance ID token to app server.
+                        app_sendTokenToServer(refreshedToken);
+                    })
+                    .catch(function (error) {
+                        showError('Unable to retrieve refreshed token.', error);
+                    });
+        });
+
+    } else {
+        if (window.location.protocol !== 'https:') {
+            showError('Is not from HTTPS');
+        } else if (!('Notification' in window)) {
+            showError('Notification not supported');
+        } else if (!('serviceWorker' in navigator)) {
+            showError('ServiceWorker not supported');
+        }
+
+        showError('This browser does not support desktop notification.');
+        showError('Is HTTPS', window.location.protocol === 'https:');
+        showError('Support Notification', 'Notification' in window);
+        showError('Support ServiceWorker', 'serviceWorker' in navigator);
     }
-
-    // get permission on subscribe only once
-    bt_register.on('click', function () {
-        getToken();
-    });
-
-    // Callback fired if Instance ID token is updated.
-    messaging.onTokenRefresh(function () {
-        messaging.getToken()
-                .then(function (refreshedToken) {
-                    showError('Token refreshed.');
-                    // Send Instance ID token to app server.
-                    sendTokenToServer(refreshedToken);
-                })
-                .catch(function (error) {
-                    showError('Unable to retrieve refreshed token.', error);
-                });
-    });
-
-} else {
-    if (window.location.protocol !== 'https:') {
-        showError('Is not from HTTPS');
-    } else if (!('Notification' in window)) {
-        showError('Notification not supported');
-    } else if (!('serviceWorker' in navigator)) {
-        showError('ServiceWorker not supported');
-    } else if (!('localStorage' in window)) {
-        showError('LocalStorage not supported');
-    } else if (!('fetch' in window)) {
-        showError('fetch not supported');
-    } else if (!('postMessage' in window)) {
-        showError('postMessage not supported');
-    }
-
-    console.warn('This browser does not support desktop notification.');
-    showError('Is HTTPS', window.location.protocol === 'https:');
-    showError('Support Notification', 'Notification' in window);
-    showError('Support ServiceWorker', 'serviceWorker' in navigator);
-    showError('Support LocalStorage', 'localStorage' in window);
-    showError('Support fetch', 'fetch' in window);
-    showError('Support postMessage', 'postMessage' in window);
 }
 
-
-function getToken() {
+function app_getToken() {
     messaging.requestPermission()
             .then(function () {
                 // Get Instance ID token. Initially this makes a network call, once retrieved
                 // subsequent calls to getToken will return from cache.
-                messaging.getToken()
+                messaging.app_getToken()
                         .then(function (currentToken) {
                             if (currentToken) {
-                                sendTokenToServer(currentToken);
+                                app_sendTokenToServer(currentToken);
                             } else {
                                 showError('No Instance ID token available. Request permission to generate one.');
-
                             }
                         })
                         .catch(function (error) {
@@ -92,8 +84,9 @@ function getToken() {
 // Send the Instance ID token your application server, so that it can:
 // - send messages back to this app
 // - subscribe/unsubscribe the token from topics
-function sendTokenToServer(currentToken) {
-    //$.post(url, {token: currentToken});         
+function app_sendTokenToServer(currentToken) {
+    //$.post(url, {token: currentToken});
+    console.log('SEND TOKEN TO SERVER ' + currentToken);
 }
 
 function showError(error, error_data) {
